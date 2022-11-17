@@ -150,7 +150,7 @@ variable_type_array = [
 "string",
 "string",
 "string",
-"int",
+"string",
 "string",
 "date",
 "datetime",
@@ -252,8 +252,7 @@ boolean_columns = @chain variable_df @subset(:type .== "boolean")
 # Assign boolean type to columns
 for col in boolean_columns.variable_names
 clean_data[!, Symbol(col)] = @chain clean_data[!, Symbol(col)] begin
-                          string.(_)
-                          (x -> x == "1" ? true : false).(_)
+                          (x -> x == 1.0 ? true : false).(_)
                       end
 end
 println("Boolean columns formatted")
@@ -267,26 +266,20 @@ end
 println("Date columns formatted")
 # Datetime
 #########
+#=
 datetime_columns = @chain variable_df @subset(:type .== "datetime")
 
 for col in datetime_columns.variable_names
     clean_data[!, Symbol(col)] = passmissing(x->DateTime(x, dateformat"yyyy-mm-dd HH:MM:SS")).(clean_data[!, Symbol(col)])
 end
 println("Datetime columns formatted")
-
+=#
 # Float
 #########
-float_columns = []
-for (key, value) in variable_dict
-    if (value) == "float"
-        push!(float_columns, (key))
-    end
-end
+float_columns = @chain variable_df @subset(:type .== "float")
 
-float_columns = sort(float_columns)
-
-for col in float_columns
-    df[!, Symbol(col)] = @chain df[!, Symbol(col)] begin
+for col in float_columns.variable_names
+    clean_data[!, Symbol(col)] = @chain clean_data[!, Symbol(col)] begin
                               passmissing(string).(_)
                               passmissing(parse).(Float64,_)
                           end
@@ -295,18 +288,10 @@ println("Float columns formatted")
 
 # Int
 #########
-int_columns = []
-for (key, value) in variable_dict
-    if (value) == "int"
-        push!(int_columns, (key))
-    end
-end
+int_columns = @chain variable_df @subset(:type .== "int")
 
-int_columns = sort(int_columns)
-
-for col in int_columns
-    print(col)
-    df[!, Symbol(col)] = @chain df[!, Symbol(col)] begin
+for col in int_columns.variable_names
+    clean_data[!, Symbol(col)] = @chain clean_data[!, Symbol(col)] begin
                               passmissing(string).(_)
                               passmissing(parse).(Float64,_)
                               passmissing(x -> convert(Int64, x)).(_)
@@ -315,22 +300,15 @@ end
 println("Int columns formatted")
 # String
 #########
-string_columns = []
-for (key, value) in variable_dict
-    if (value) == "string"
-        push!(string_columns, (key))
-    end
-end
+string_columns = @chain variable_df @subset(:type .== "string")
 
-string_columns = sort(string_columns)
-
-for col in int_columns
-    df[!, Symbol(col)] = @chain df[!, Symbol(col)] passmissing(string).(_)
+for col in string_columns.variable_names
+    clean_data[!, Symbol(col)] = @chain clean_data[!, Symbol(col)] passmissing(string).(_)
 end
 println("String columns formatted")
 
 # Check the types
-eltype_df = DataFrame(cols = names(df), type = eltype.(eachcol(df)))
+eltype_df = DataFrame(cols = names(clean_data), type = eltype.(eachcol(clean_data)))
 
 ########################
 # VARIABLE EXPLORATION #
@@ -338,8 +316,8 @@ eltype_df = DataFrame(cols = names(df), type = eltype.(eachcol(df)))
 Plots.plotly()
 # Boolean columns
 boolean_frequency_tables = []
-for col in boolean_columns
-    frequency = freqtable(df[!, Symbol(col)])
+for col in boolean_columns.variable_names
+    frequency = freqtable(clean_data[!, Symbol(col)])
     freq_vec = [frequency[x] for x in 1:2]
     freq_df = DataFrame(col1 = [false, true], n = freq_vec)
     rename!(freq_df, :col1 => col)
@@ -367,8 +345,8 @@ boolean_plots = plot((boolean_frequency_charts[i] for i in 1:length(boolean_freq
 
 # Date columns
 date_frequency_tables = []
-for col in date_columns
-    freq_df = @chain df begin
+for col in date_columns.variable_names
+    freq_df = @chain clean_data begin
                      groupby(Symbol(col))
                      combine(nrow => :n)
                  end
@@ -397,9 +375,9 @@ date_plots = plot((date_frequency_charts[i] for i in 1:length(date_frequency_cha
 
 
 # Datetime columns
-datetime_colnames = Symbol.(datetime_columns)
-datetime_df = df[!, datetime_colnames]
-for col in datetime_columns
+datetime_colnames = Symbol.(datetime_columns.variable_names)
+datetime_df = clean_data[!, datetime_colnames]
+for col in datetime_columns.variable_names
     #datetime_df[!, Symbol(col)] =
     datetime_df[!, Symbol(col)] = @chain datetime_df[!, Symbol(col)] begin
                                          passmissing(string).(_)
@@ -410,7 +388,7 @@ for col in datetime_columns
 end
 
 datetime_frequency_tables = []
-for col in datetime_columns
+for col in datetime_columns.variable_names
     freq_df = @chain datetime_df begin
                      groupby(Symbol(col))
                      combine(nrow => :n)
@@ -439,16 +417,17 @@ datetime_plots = plot((datetime_frequency_charts[i] for i in 1:length(datetime_f
 
 
 # Float columns
+float_df = clean_data[!, float_columns.variable_names]
+float_describe = describe(float_df, :all)
+
 float_frequency_tables = []
-for col in float_columns
-    freq_df = @chain df begin
+for col in float_columns.variable_names
+    freq_df = @chain clean_data begin
                      groupby(Symbol(col))
                      combine(nrow => :n)
                  end
     push!(float_frequency_tables, freq_df)
 end
-
-float_describe = describe(df[!, float_columns])
 
 float_frequency_charts = []
 for table in float_frequency_tables
