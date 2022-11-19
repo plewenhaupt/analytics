@@ -9,11 +9,14 @@
 
 # Load packages
 using
+Clustering,
 DataFrames,
 DataFramesMeta,
 Dates,
 FreqTables,
 GLM,
+GraphRecipes,
+Graphs,
 Missings,
 Statistics,
 StatsBase,
@@ -518,23 +521,65 @@ string_plots = plot((string_frequency_charts[i] for i in 1:length(string_frequen
 # ANALYSIS #
 ############
 # Correlation matrix of int columns
-cols = @chain int_columns[[4, 14:18, 20:22, 24:30, 33:37, 42, 56:57, 59:64, 71:76]] vcat(_...)
-cor_df = df[!, [Symbol(x) for x in cols]]
+corr_matrix_cols_df = int_columns[vcat([14:18, 20:22, 24:30, 33:37, 42, 56:58, 60:63, 69:74]...), :]
+cols = corr_matrix_cols_df.variable_names
+cor_df = clean_data[!, [Symbol(x) for x in cols]]
+int_describe = describe(cor_df, :nmissing)
 corr_matrix = @chain cor_df dropmissing() Matrix() corkendall()
-max_val = maximum(abs, M)   # correlation matrix
+max_val = maximum(abs, corr_matrix)   # correlation matrix
 
 # Correlation matrix plot
 (n,m) = size(corr_matrix)
 heatmap(corr_matrix, c = cgrad([:blue,:white,:red]), xticks=(1:m,cols), xrot=90, yticks=(1:m,cols), yflip=true, clims=(-max_val, max_val), size = (1200, 1200))
 annotate!([(j, i, text(round(corr_matrix[i,j],digits=2), 8,"Computer Modern",:black)) for i in 1:n for j in 1:m])
 
+# Correlation matrix with low correlations removed
+high_corr_matrix = copy(corr_matrix)
+high_corr_matrix[findall(high_corr_matrix .< 0.35)] .= 0.0
+
+(n,m) = size(high_corr_matrix)
+heatmap(high_corr_matrix, c = cgrad([:blue,:white,:red]), xticks=(1:m,cols), xrot=90, yticks=(1:m,cols), yflip=true, clims=(-max_val, max_val), size = (1200, 1200))
+annotate!([(j, i, text(round(high_corr_matrix[i,j],digits=2), 8,"Computer Modern",:black)) for i in 1:n for j in 1:m])
+
 # So, what do I do with this correlation matrix?
 #- I need p-values for all the correlations
 #- Do a hierarchical clustering of all correlations, to see which variables are more highly correlated
+#- Create a network from the highly correlated variables. Nodes = variables, edges = edge between nodes for variables with a strong correlation.
 
+# Network graph
+# First, remove the self-correlation
+network_matrix = copy(corr_matrix)
+for i=1:length(cols)
+    network_matrix[i, i] = 0
+end
 
+# Set all values below threshold to 0.0
+network_matrix[findall(network_matrix .< 0.38)] .= 0.0
 
+# Remove all high correlations from the same category
+category_index = [1:5, 6:8, 9:11, 12:15, 18:20, 21, 22:23, 24:25, 26:28, 29:31, 33:34]
+for r in category_index
+    for i = r, j = r
+        network_matrix[i, j] = 0
+    end
+end
 
+network_matrix_boolean_mask = vec(mapslices(col -> any(col .!= 0), network_matrix, dims = 1))
+# Remove columns with all zeroes
+network_matrix = network_matrix[:, network_matrix_boolean_mask]
+# Remove rows with all zeroess
+network_matrix = network_matrix[network_matrix_boolean_mask, :]
+
+graph_names = cols[network_matrix_boolean_mask]
+
+edge_labels = (x -> round(x, digits = 2)).(network_matrix)
+
+graphplot(network_matrix,
+            curves=false,
+            nodeshape = :rect,
+            names = graph_names,
+            edgelabel = edge_labels,
+            size = (1200, 1200))
 
 
 # Linear regression with e.g. age, gender, location, etc., as independent values, and the int columns as dependent
@@ -558,17 +603,3 @@ JarqueBeraTest(ar)
 
 poisson_model = glm(fm, lm_df, Poisson(), LogLink())
 deviance(poisson_model)
-
-stats = summarystats(col)
-stats_dict = Dict(
-	:mean => stats.mean,
-	:sd => sqrt(var(col)),
-	:min => stats.min ,
-	:q25 => stats.q25,
-	:median => stats.median,
-	:q75 => stats.q75,
-	:max => stats.max,
-	:type => eltype(col),
-	:NMissing => nothing,
-	:NUnique => nothing
-)
