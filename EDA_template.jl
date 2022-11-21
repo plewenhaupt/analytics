@@ -18,6 +18,7 @@ GLM,
 GraphRecipes,
 Graphs,
 Missings,
+OrdinalMultinomialModels,
 Statistics,
 StatsBase,
 StatsPlots,
@@ -50,8 +51,9 @@ variable_names = @chain original_data names()
 
 # Make a dictionary of question ids and questions
 questions = [original_data[1,i] for i in 1:ncol(original_data)]
+column_order_index = [1:ncol(clean_data)...]
 variable_dict = Dict(variable_names .=> questions)
-variable_df = @chain DataFrame(variable_names = variable_names, questions = questions) sort()
+variable_df = @chain DataFrame(variable_names = variable_names, questions = questions, column_order_index = column_order_index) sort()
 
 # Remove the first row, containing the questions
 clean_data = original_data[Not([1]), :]
@@ -582,24 +584,19 @@ graphplot(network_matrix,
             size = (1200, 1200))
 
 
-# Linear regression with e.g. age, gender, location, etc., as independent values, and the int columns as dependent
-lm_df = @chain df begin
-                select(:Age, Symbol("Legal Gender"), Symbol("Work Location"), Symbol("Engagement Q2"))
-                rename([:Age => :age, Symbol("Legal Gender") => :gender, Symbol("Work Location") => :office, Symbol("Engagement Q2") => :engagement])
-                dropmissing()
-            end
+# Linear regression
+# Why would I want to do linear regression? To find out the relationship between a dependent variable and some independent variables of interest. 
+# The choice of regression type is based on the dependent variable. For standard linear regression, several assumptions have to be met. 
+# So, if those assumptions are not met, I need to use other types of regressions. 
+# In this case, the dependent variables are ordinal, which does not meet the assumptions for standard linear regression. Instead, we are going to do an ordered probit regression. 
+lm_df = @chain clean_data begin
+    select(125, 127, 131, 132, 145, 152, 153, 162, 12, 13, 14, 16)
+    rename(["age", "skill_area", "area", "employee_type", "job_level", "gender", "country", "office", "engagement1", "engagement2", "engagement3", "engagement4"])
+    dropmissing()
+end
 
-fm = @formula(engagement ~ age + gender + office)
+#fm = @formula(engagement1 ~ age + skill_area + area + employee_type + job_level + gender + country + office)
+fm = @formula(engagement1 ~ age + skill_area + area)
 
-model = lm(fm, lm_df)
+model = polr(fm, lm_df, ProbitLink())
 
-ar = @chain df[!, Symbol("Engagement Q2")] skipmissing() collect()
-
-qqnorm(ar, qqline = :R)
-
-JarqueBeraTest(ar)
-
-# The JB test shows that the dependent variable
-
-poisson_model = glm(fm, lm_df, Poisson(), LogLink())
-deviance(poisson_model)
