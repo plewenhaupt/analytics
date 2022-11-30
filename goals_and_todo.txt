@@ -1,0 +1,9 @@
+STEPS
+1. Load data
+2. Check size of data file
+3. Check size of tabular data (rows and columns)
+4. Check variables - Columns. Determine type. If not correct type, set column to correct type in dataframe.
+5. Descriptive statistics of variables:
+    5.1. Ordinal/nominal - Frequency distributions, mode
+    5.2. Continuous/discrete - Mean, median, range, quartiles, variance, standard deviation.
+6. Check missing - It would be nice to be able to recreate the chart I had in R, showing the missing values. Otherwise, a bar chart showing the proportion of missing, perhaps? No, a heatmap is better, where each square represents part of the dataset.
