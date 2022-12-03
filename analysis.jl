@@ -8,8 +8,7 @@ GLM,
 GraphRecipes,
 Graphs,
 OrdinalMultinomialModels,
-StatsBase,
-StatsPlots
+StatsBase
 
 ############
 # ANALYSIS #
@@ -22,6 +21,11 @@ cols = names(cor_df)
 cor_types = DataFrame(cols = names(cor_df), type = eltype.(eachcol(cor_df)))
 corr_matrix = @chain cor_df dropmissing() Matrix() corkendall()
 max_val = maximum(abs, corr_matrix)
+
+(n,m) = size(corr_matrix)
+heatmap(corr_matrix, c = cgrad([:blue,:white,:red]), xticks=(1:m,ordered_colnames), xrot=90, yticks=(1:m,ordered_colnames), yflip=true, clims=(-max_val, max_val), size = (1200, 1200))
+annotate!([(j, i, text(round(corr_matrix[i,j],digits=2), 8,"Computer Modern",:black)) for i in 1:n for j in 1:m])
+
 
 # So, what do I do with this correlation matrix?
 #- I need p-values for all the correlations

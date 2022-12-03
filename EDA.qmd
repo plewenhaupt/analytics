@@ -1,0 +1,30 @@
+---
+title: "Exploratory Data Analysis"
+format:
+  html:
+    code-fold: true
+---
+
+```{julia}
+# Load packages
+using
+DataFrames,
+DataFramesMeta,
+Dates,
+Latexify,
+Missings,
+TableView,
+XLSX
+```
+
+
+## File
+### Size
+```{julia}
+# Check size of data file
+file_path = "/Users/pederlewenhaupt/Misc/data.xlsx"
+file_size = filesize(file_path)
+kb = file_size/1000
+mb = file_size/(1000^2)
+datasize_df = @chain DataFrame(Megabytes = round(mb, digits = 2)) latexify() 
+```

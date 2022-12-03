@@ -4,7 +4,10 @@ using
 DataFrames,
 DataFramesMeta,
 Dates,
+Latexify,
 Missings,
+StatsPlots,
+TableView,
 XLSX
 
 # Check size of data file
@@ -12,7 +15,7 @@ file_path = "/Users/pederlewenhaupt/Misc/data.xlsx"
 file_size = filesize(file_path)
 kb = file_size/1000
 mb = file_size/(1000^2)
-filesize_df = DataFrame(bytes = file_size, kilobytes = round(kb, digits = 2), megabytes = round(mb, digits = 2))
+filesize_df = DataFrame(Megabytes = round(mb, digits = 2))
 
 # Load data
 const original_data = @chain file_path XLSX.readtable(_, 1) DataFrame()
@@ -21,7 +24,8 @@ const original_data = @chain file_path XLSX.readtable(_, 1) DataFrame()
 # DATA INSPECTION AND TYPE FORMATTING #
 #######################################
 # Check size of tabular data
-df_size = DataFrame(rows = nrow(original_data), columns = ncol(original_data))
+filesize_df[!, "Rows"] = [nrow(original_data)]
+filesize_df[!, "Columns"] = [ncol(original_data)]
 
 # Ocular inspection of first 10 rows
 first_df = first(original_data, 10)
@@ -42,6 +46,37 @@ const clean_data = original_data[Not([1]), :]
 for col in variable_names
     clean_data[!, Symbol(col)] = passmissing((x -> x == "-" ? missing : x)).(clean_data[!, Symbol(col)])
 end
+
+# Missing heatmap
+# 1. Divide the dataset into pieces
+# - Divide a column into pieces
+# First, I need a list of the indices of the pieces of the column, divided into the number of pieces wanted. 
+rows = nrow(clean_data)
+pieces = 50
+rows_per_piece = Int(round(rows/pieces, digits = 0))
+indices = [range(start = 1, stop = rows, step = rows_per_piece)...]
+pop!(indices)
+
+# Divide a column into pieces and 
+missing_percent_arrays = []
+for col in variable_names
+    column_array = Float64[]
+    for (index_start, piece) in zip(indices, 1:pieces)  
+        step = piece_size - 1
+        row_indices = ifelse(piece == pieces, index_start:rows, index_start:(index_start + step))
+        dataset_piece = clean_data[row_indices, Symbol(col)]
+        count(ismissing, dataset_piece)
+        n_missing = count(ismissing, dataset_piece)
+        percent_missing = round(n_missing/length(dataset_piece), digits = 2)
+        push!(column_array, percent_missing)
+    end
+    push!(missing_percent_arrays, column_array)
+end
+
+missing_percent_vector = vcat(missing_percent_arrays)
+missing_percent_matrix = reshape(missing_percent_vector, 50, 167)
+
+heatmap(missing_percent_matrix, c = cgrad([:blue,:white,:red]), clims=(0, 1), size = (1200, 1200))
 
 
 # Create dictionary of unique values for each variable
