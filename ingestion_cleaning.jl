@@ -51,32 +51,34 @@ end
 # 1. Divide the dataset into pieces
 # - Divide a column into pieces
 # First, I need a list of the indices of the pieces of the column, divided into the number of pieces wanted. 
-rows = nrow(clean_data)
-pieces = 50
-rows_per_piece = Int(round(rows/pieces, digits = 0))
-indices = [range(start = 1, stop = rows, step = rows_per_piece)...]
-pop!(indices)
+function heatmap_missing(data, pieces)
+    rows = nrow(data)
+    rows_per_piece = Int(round(rows/pieces, digits = 0))
+    indices = [range(start = 1, stop = rows, step = rows_per_piece)...]
+    pop!(indices)
 
-# Divide a column into pieces and 
-missing_percent_arrays = []
-for col in variable_names
-    column_array = Float64[]
-    for (index_start, piece) in zip(indices, 1:pieces)  
-        step = piece_size - 1
-        row_indices = ifelse(piece == pieces, index_start:rows, index_start:(index_start + step))
-        dataset_piece = clean_data[row_indices, Symbol(col)]
-        count(ismissing, dataset_piece)
-        n_missing = count(ismissing, dataset_piece)
-        percent_missing = round(n_missing/length(dataset_piece), digits = 2)
-        push!(column_array, percent_missing)
+    # Divide a column into pieces and 
+    missing_percent_arrays = []
+    for col in names(data)
+        column_array = Float64[]
+        for (index_start, piece) in zip(indices, 1:pieces)  
+            step = rows_per_piece - 1
+            row_indices = ifelse(piece == length(indices), index_start:rows, index_start:(index_start + step))
+            dataset_piece = data[row_indices, Symbol(col)]
+            count(ismissing, dataset_piece)
+            n_missing = count(ismissing, dataset_piece)
+            percent_missing = round(n_missing/length(dataset_piece), digits = 2)
+            push!(column_array, percent_missing)
+        end
+        push!(missing_percent_arrays, column_array)
     end
-    push!(missing_percent_arrays, column_array)
+
+    missing_percent_vector = vcat(missing_percent_arrays...)
+    missing_percent_matrix = reshape(missing_percent_vector, Int64(length(missing_percent_vector)/ncol(data)), ncol(data))
+
+    heatmap_missing = heatmap(missing_percent_matrix, c = cgrad([:white,:red]), clims=(0, 1), size = (1200, 1200))
+    return heatmap_missing
 end
-
-missing_percent_vector = vcat(missing_percent_arrays)
-missing_percent_matrix = reshape(missing_percent_vector, 50, 167)
-
-heatmap(missing_percent_matrix, c = cgrad([:blue,:white,:red]), clims=(0, 1), size = (1200, 1200))
 
 
 # Create dictionary of unique values for each variable

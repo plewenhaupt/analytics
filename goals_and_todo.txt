@@ -6,10 +6,4 @@ STEPS
 5. Descriptive statistics of variables:
     5.1. Ordinal/nominal - Frequency distributions, mode
     5.2. Continuous/discrete - Mean, median, range, quartiles, variance, standard deviation.
-6. Check missing - It would be nice to be able to recreate the chart I had in R, showing the missing values. Otherwise, a bar chart showing the proportion of missing, perhaps? No, a heatmap is better, where each square represents part of the dataset.
-- This could be done by: 
-    1. Dividing the datasets columns into pieces
-    2. Checking the percentage of missing in each piece
-    3. Putting all percentages into a matrix
-    4. Using the matrix to create a heatmap, showing where there are missing values
-
+6. Check missing 
